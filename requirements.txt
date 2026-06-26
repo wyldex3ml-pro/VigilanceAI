@@ -1,3 +1,8 @@
+streamlit
+streamlit-autorefresh
+requests
+pandas
+plotly
 fastapi
 uvicorn
 python-dotenv
@@ -5,4 +10,3 @@ google-genai
 python-jose
 python-multipart
 qdrant-client
-plotly
