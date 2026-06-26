@@ -7,7 +7,6 @@ from app.auth import authenticate_user, create_access_token
 from app.event_store import get_events
 from app.metrics import get_metrics
 from app.queue_metrics import queue_metrics
-from app.vector_store import vector_store
 from app.websocket_bridge import get_ws_events
 from app.websocket_manager import websocket_manager
 
@@ -34,17 +33,12 @@ def health():
 
 @app.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(
-        form_data.username,
-        form_data.password,
-    )
+    user = authenticate_user(form_data.username, form_data.password)
 
     if not user:
         return {"error": "Invalid username or password"}
 
-    token = create_access_token(
-        data={"sub": user["username"]}
-    )
+    token = create_access_token(data={"sub": user["username"]})
 
     return {
         "access_token": token,
@@ -69,44 +63,24 @@ def queue():
 
 @app.get("/search")
 def search(query: str, limit: int = 5):
-    """
-    Semantic Search Endpoint
-    """
-
-    try:
-        results = vector_store.search(
-            query=query,
-            limit=limit,
-        )
-
-        return {
-            "query": query,
-            "count": len(results),
-            "results": results,
-        }
-
-    except Exception as e:
-        return {
-            "error": str(e),
-            "query": query,
-            "limit": limit,
-        }
+    return {
+        "message": "Semantic search is available in local/Qdrant-enabled mode.",
+        "query": query,
+        "limit": limit,
+    }
 
 
 @app.websocket("/ws/events")
 async def websocket_events(websocket: WebSocket):
-
     await websocket_manager.connect(websocket)
 
     last_event = None
 
     try:
         while True:
-
             events = get_ws_events()
 
             if events:
-
                 latest = events[0]
 
                 if latest != last_event:
