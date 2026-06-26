@@ -5,3 +5,4 @@ google-genai
 python-jose
 python-multipart
 qdrant-client
+plotly
