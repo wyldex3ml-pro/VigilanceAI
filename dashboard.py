@@ -10,34 +10,36 @@ st.set_page_config(
     layout="wide",
 )
 
-st_autorefresh(interval=1000, key="dashboard_refresh")
+st_autorefresh(interval=3000, key="dashboard_refresh")
 
-METRICS_API = "http://127.0.0.1:8000/metrics"
-EVENTS_API = "http://127.0.0.1:8000/events"
-QUEUE_API = "http://127.0.0.1:8000/queue"
-SEARCH_API = "http://127.0.0.1:8000/search"
+API_BASE_URL = "https://vigilanceai-vt78.onrender.com"
+
+METRICS_API = f"{API_BASE_URL}/metrics"
+EVENTS_API = f"{API_BASE_URL}/events"
+QUEUE_API = f"{API_BASE_URL}/queue"
+SEARCH_API = f"{API_BASE_URL}/search"
 
 st.title("🛡️ VigilanceAI")
 st.subheader("Real-Time Multi-Modal Threat Stream Optimizer")
 
 try:
-    metrics = requests.get(METRICS_API, timeout=5).json()
-    events = requests.get(EVENTS_API, timeout=5).json()
-    queue = requests.get(QUEUE_API, timeout=5).json()
+    metrics = requests.get(METRICS_API, timeout=15).json()
+    events = requests.get(EVENTS_API, timeout=15).json()
+    queue = requests.get(QUEUE_API, timeout=15).json()
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("📊 Total Events", metrics["total_events"])
-    c2.metric("🖥️ Local Decisions", metrics["local_only"])
-    c3.metric("☁️ Cloud AI Calls", metrics["cloud_calls"])
-    c4.metric("💰 Cost Savings", f'{metrics["savings_percent"]}%')
+    c1.metric("📊 Total Events", metrics.get("total_events", 0))
+    c2.metric("🖥️ Local Decisions", metrics.get("local_only", 0))
+    c3.metric("☁️ Cloud AI Calls", metrics.get("cloud_calls", 0))
+    c4.metric("💰 Cost Savings", f'{metrics.get("savings_percent", 0)}%')
 
     q1, q2, q3 = st.columns(3)
-    q1.metric("📦 Queue Size", queue["queue_size"])
-    q2.metric("⚙️ Events Processed", queue["events_processed"])
-    q3.metric("🟢 Active Workers", queue["active_workers"])
+    q1.metric("📦 Queue Size", queue.get("queue_size", 0))
+    q2.metric("⚙️ Events Processed", queue.get("events_processed", 0))
+    q3.metric("🟢 Active Workers", queue.get("active_workers", 0))
 
-    st.progress(metrics["savings_percent"] / 100)
-    st.success("Pipeline Status: Healthy")
+    st.progress(metrics.get("savings_percent", 0) / 100)
+    st.success("Backend Status: Connected")
 
     st.divider()
 
@@ -48,9 +50,9 @@ try:
         latest = events[0]
 
         st.info(
-            f"Latest Event: {latest['payload']} | "
-            f"Risk: {latest['risk_level']} | "
-            f"Route: {latest['route']}"
+            f"Latest Event: {latest.get('payload', 'N/A')} | "
+            f"Risk: {latest.get('risk_level', 'N/A')} | "
+            f"Route: {latest.get('route', 'N/A')}"
         )
 
         col1, col2 = st.columns(2)
@@ -72,45 +74,6 @@ try:
 
         st.divider()
 
-        st.subheader("🔍 Semantic Event Search")
-        query = st.text_input("Search similar events", "suspicious package")
-
-        if st.button("Search"):
-            response = requests.get(
-                SEARCH_API,
-                params={"query": query, "limit": 5},
-                timeout=10,
-            )
-
-            if response.status_code == 200:
-                search_data = response.json()
-                results = search_data.get("results", [])
-
-                if results:
-                    search_df = pd.DataFrame(
-                        [
-                            {
-                                "score": round(item["score"], 4),
-                                "payload": item["event"]["payload"],
-                                "risk_level": item["event"]["risk_level"],
-                                "route": item["event"]["route"],
-                            }
-                            for item in results
-                        ]
-                    )
-
-                    st.dataframe(
-                        search_df,
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-                else:
-                    st.info("No semantic matches found.")
-            else:
-                st.warning("Search endpoint returned no valid result.")
-
-        st.divider()
-
         st.subheader("📋 Recent Events")
         st.dataframe(
             df[
@@ -127,7 +90,41 @@ try:
             hide_index=True,
         )
     else:
-        st.info("No events yet.")
+        st.info("No cloud events yet. Backend is connected and running in lightweight deployment mode.")
+
+    st.divider()
+
+    st.subheader("🔍 Semantic Event Search")
+    query = st.text_input("Search similar events", "suspicious package")
+
+    if st.button("Search"):
+        response = requests.get(
+            SEARCH_API,
+            params={"query": query, "limit": 5},
+            timeout=15,
+        )
+
+        if response.status_code == 200:
+            search_data = response.json()
+            results = search_data.get("results", [])
+
+            if results:
+                search_df = pd.DataFrame(
+                    [
+                        {
+                            "score": round(item["score"], 4),
+                            "payload": item["event"]["payload"],
+                            "risk_level": item["event"]["risk_level"],
+                            "route": item["event"]["route"],
+                        }
+                        for item in results
+                    ]
+                )
+                st.dataframe(search_df, use_container_width=True, hide_index=True)
+            else:
+                st.info(search_data.get("message", "Semantic search is in lightweight API mode."))
+        else:
+            st.warning("Search endpoint returned no valid result.")
 
 except Exception as e:
-    st.error(e)
+    st.error(f"Could not connect to backend: {e}")
