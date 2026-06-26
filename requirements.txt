@@ -3,6 +3,7 @@ streamlit-autorefresh
 requests
 pandas
 plotly
+
 fastapi
 uvicorn
 python-dotenv
